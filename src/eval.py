@@ -31,7 +31,6 @@ def help(env):
     for name in sorted(forms.keys()):
         print "\t%s" % name
     print_ops()
-    print_accessors()
     return None, env
 
 def reverse(ls):
@@ -293,12 +292,9 @@ def lisp_apply(function, params, env):
     #print "APPLY: " + str_list(function)
     #print "ON:    " + str_list(params) + "\n"
     if isatom(function):
-        if function in unary_ops:
-            value = unary_ops[function](car(params))
-        elif function in binary_ops:
-            value = binary_ops[function](car(params), car(cdr(params)))
-        elif function in variadic_ops:
-            value = variadic_ops[function](params)          
+        op = builtin_ops.get(function, None)
+        if op is not None:
+            value = op(params)
         else:
             value, env = lisp_apply(lookup(function, env.list, "Cannot find/apply '%s'"), params, env)
     else:
