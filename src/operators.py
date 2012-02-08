@@ -90,6 +90,7 @@ builtin_ops = {
     'EQ?': lambda x, y: x is y,
 }
 
+# Convert to native
 builtin_ops = dict((key, native(value)) for (key, value) in builtin_ops.iteritems())
 
 # Variadic Operators
@@ -100,8 +101,10 @@ variadic_ops = {
     '/': operator.div,
 }
 
+# Add variadic operators
 builtin_ops.update((key, variadic_op(value)) for (key, value) in variadic_ops.iteritems())
 
+# Add whole-list operators
 builtin_ops["PRINT"] = display
 builtin_ops["LIST"] = lambda ls: ls
 
