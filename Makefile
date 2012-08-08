@@ -3,4 +3,4 @@ test:
 	@echo "Tests passed"
 
 clean:
-	rm -f src/*.pyc
+	rm -rf src/*.pyc src/__pycache__

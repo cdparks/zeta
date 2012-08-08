@@ -199,9 +199,7 @@ def eval_delete(rest, env):
 def eval_load(file, env):
     """Modify current environment by evaluating file"""
     with open(car(file)) as stream:
-        print("!!READING FILE {}".format(file))
         env = repl(env, stream)
-        print("!!READ FILE!")
     return None, env
 
 # Not part of 'forms', just used by the others
