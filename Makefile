@@ -1,5 +1,5 @@
 test:
-	python zeta.py < tests/test.lisp | diff tests/test.out -
+	python3 zeta.py < tests/test.lisp | diff tests/test.out -
 	@echo "Tests passed"
 
 clean:

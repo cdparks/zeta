@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 # Author: Christopher D. Parks
 # Email: chris.parks@uky.edu
 # Date: 4 December 2011
@@ -10,7 +12,7 @@ All "builtin" functions and operators are defined here.
 import operator
 import math
 from functools import wraps
-from primitives import *
+from src.primitives import *
 
 __all__ = [
     'builtin_ops', 'UserError', 'print_ops',
@@ -32,7 +34,7 @@ def variadic_op(binary_op):
     @wraps(binary_op)
     def new_op(ls):
         if isnil(ls):
-            raise ValueError("%s takes at least 1 operand" % binary_op)
+            raise ValueError("{} takes at least 1 operand".format(binary_op))
         else:
             out = car(ls)
             ls = cdr(ls)
@@ -52,7 +54,7 @@ def error(msg):
 
 def display(list):
     """Can't put print in a lambda either"""
-    print str_list(list)[1:-1]
+    print(str_list(list)[1:-1])
 
 # Builtin functions
 builtin_ops = {
@@ -91,18 +93,19 @@ builtin_ops = {
 }
 
 # Convert to native
-builtin_ops = dict((key, native(value)) for (key, value) in builtin_ops.iteritems())
+builtin_ops = dict((key, native(value)) for (key, value) in builtin_ops.items())
 
 # Variadic Operators
 variadic_ops = {
     '+': operator.add,
     '-': operator.sub,
     '*': operator.mul,
-    '/': operator.div,
+    '/': operator.truediv,
+    '//': operator.floordiv
 }
 
 # Add variadic operators
-builtin_ops.update((key, variadic_op(value)) for (key, value) in variadic_ops.iteritems())
+builtin_ops.update((key, variadic_op(value)) for (key, value) in variadic_ops.items())
 
 # Add whole-list operators
 builtin_ops["PRINT"] = display
@@ -143,14 +146,14 @@ def print_table(items, columns, width):
     """Prints items in ascii table"""
     for i, name in enumerate(items):
         if i % columns == 0:
-            print "\t",
+            print("\t", end='')
         if (i + 1) % columns == 0:
-            print '{0:{1}}'.format(name, width)
+            print('{0:{1}}'.format(name, width))
         else:
-            print '{0:{1}}'.format(name, width),
+            print('{0:{1}}'.format(name, width), end='')
     if (i + 1) % columns != 0:
-        print # final newline
+        print() # final newline
 
 def print_ops():
-    print "Builtin Functions/Operators:"
+    print("Builtin Functions/Operators:")
     print_table(sorted_ops, op_columns, op_width)

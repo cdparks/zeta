@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 # Author: Christopher D. Parks
 # Email: chris.parks@uky.edu
 # Date: 4 December 2011
@@ -17,7 +19,7 @@ __all__ = ['Parser']
 
 import sys
 from functools import wraps
-from primitives import make_list, str_list, Symbol
+from src.primitives import make_list, str_list, Symbol
 from re import compile
 
 class ParseError(BaseException):
@@ -35,17 +37,17 @@ class Enum(object):
     def __contains__(self, id):
         return 0 <= id <= self.last
 
-# This is kind of overkill since we really only test against LPAREN, RPAREN, 
-# QUOTE, and EOL. Consider it future-proofing. Use like lexemes.LPAREN or 
+# This is kind of overkill since we really only test against LPAREN, RPAREN,
+# QUOTE, and EOL. Consider it future-proofing. Use like lexemes.LPAREN or
 # if thing in lexemes:
 lexemes = Enum('LPAREN', 'RPAREN', 'INT', 'FLOAT', 'STRING', 'SYMBOL', 'QUOTE', 'NIL', 'TRUE', 'EOL')
 
 class Token(object):
-    """Carries around an item's token type and canonical value"""   
+    """Carries around an item's token type and canonical value"""
     def __init__(self, type, value):
         self.type = type
         self.value = value
-        
+
 def make_token(atom, str=False):
     """Build a token out of a list of characters"""
 
@@ -82,6 +84,7 @@ def my_input(prompt=None, filein=sys.stdin, fileout=sys.stdout):
     """Replacement for builtin raw_input that adds stream parameters"""
     if prompt is not None:
         fileout.write(prompt)
+        fileout.flush()
     line = filein.readline()
     if line:
         return line.strip()
@@ -112,7 +115,7 @@ class Parser(object):
             "'": Token(lexemes.QUOTE, Symbol('QUOTE')),
             ' ': None, '\t': None, '\n': None, '\r\n': None,
         }
-            
+
     def lex(self, read):
         """Yield tokens to parser. Can yield empty tokens - see skip_empty"""
         atom = []
@@ -158,7 +161,7 @@ class Parser(object):
         while token is None:
             token = next(self.stream)
         return token
-    
+
     def next_token(self):
         """Replaces 'next' and refreshes stream on newlines"""
         token = self.skip_empty()
@@ -166,14 +169,14 @@ class Parser(object):
             self.stream = self.lex(self.readNext)
             token = self.skip_empty()
         return token
-    
+
     def finish(self, msg):
         """Checks for extraneous output"""
         token = self.skip_empty()
         if token.type != lexemes.EOL:
                 raise ParseError(msg)
         self.stream.close()
-    
+
     def nested_expr(self):
         """Inside parens"""
         out = []
@@ -189,7 +192,7 @@ class Parser(object):
             token = self.next_token()
         self.stack -= 1
         return out
-    
+
     def s_expr(self):
         """Outside parens"""
         token = self.next_token()
@@ -201,7 +204,7 @@ class Parser(object):
             return [token.value, self.s_expr()]
         else:
             return token.value
-    
+
     def to_list(self, s_expr):
         """Transform nested list into None-terminated nested tuple"""
         if isinstance(s_expr, list):
@@ -214,19 +217,19 @@ class Parser(object):
                 return make_list(*items)
         else:
             return s_expr
-                
+
     def parse(self):
         try:
             self.stream = self.lex(self.readFirst)
             value = self.to_list(self.s_expr())
-            self.finish("Extra input following '%s'" % str_list(value))
+            self.finish("Extra input following '{}'".format(str_list(value)))
             return value
         except ParseError as e:
-            print "ParseError: %s" % e
+            print("ParseError: {}".format(e))
             return None
         except EOFError:
             if not self.interactive and self.stack != 0:
-                print "ParseError: EOF inside unterminated expression"
+                print("ParseError: EOF inside unterminated expression")
             raise
 
 if __name__ == '__main__':
@@ -234,6 +237,6 @@ if __name__ == '__main__':
     parser = Parser()
     while 1:
         try:
-            print parser.parse()
+            print(parser.parse())
         except (KeyboardInterrupt, EOFError):
             break

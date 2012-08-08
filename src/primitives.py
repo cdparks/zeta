@@ -46,16 +46,16 @@ def type_check(types):
             return function(*args)
         return checked
     return make_decorator
-        
+
 def cons(a, b):
     """Tuples instantiate fast and have random access"""
     return (a, b)
-    
+
 @type_check(tuple)
 def car(x):
     return x[0]
 
-@type_check(tuple)  
+@type_check(tuple)
 def cdr(x):
     """
     cdr cheats - this works on 'real' linked-lists as well as
@@ -71,10 +71,10 @@ def cdr(x):
         return x[-1]
     else:
         return x[1:]
-    
+
 def isnil(thing):
     return thing is None
-    
+
 def isatom(thing):
     return not isinstance(thing, tuple)
 
@@ -121,6 +121,6 @@ def append(ls1, ls2):
     if isnil(ls1):
         return ls2
     elif isnil(ls2):
-        return ls1  
+        return ls1
     else:
         return cons(car(ls1), append(cdr(ls1), ls2))

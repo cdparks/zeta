@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 # Author: Christopher D. Parks
 # Email: chris.parks@uky.edu
 # Date: 4 December 2011
@@ -13,23 +15,23 @@ __all__ = ['eval', 'repl']
 import sys
 import operator
 from functools import wraps
-from parse import Parser
-from primitives import *
-from operators import *
+from src.parse import Parser
+from src.primitives import *
+from src.operators import *
 
 def help(env):
     """Print environment, forms, and builtin operators/functions"""
     def env_only(env):
         if isnil(env):
-            print "\t" + str_list(env)
+            print("\t{}".format(str_list(env)))
         else:
-            print "\t" + str_list(car(car(env))) + " -> " + str_list(car(cdr(car(env))))
+            print("\t{} -> {}".format(str_list(car(car(env))), str_list(car(cdr(car(env))))))
             env_only(cdr(env))
-    print "Environment:"
+    print("Environment:")
     env_only(env.list)
-    print "Forms:"
+    print("Forms:")
     for name in sorted(forms.keys()):
-        print "\t%s" % name
+        print("\t{}".format(name))
     print_ops()
     return None, env
 
@@ -153,17 +155,17 @@ def eval_define(rest, env):
     """
     Names:
     (define pi 3.1415926535897931)
-    
+
     Functions:
     (define (gcd x y)
         (if (= y 0
             x
             (gcd y (mod x y)))))
-            
+
     =>
-    
+
     (LAMBDA-CLOSURE (X Y) (BEGIN (IF (= Y 0) X (GCD Y (MOD X Y)))) (ENV))
-    
+
     Allows multiple expressions:
     (define (factorial n)
         (define (loop x out)
@@ -171,9 +173,9 @@ def eval_define(rest, env):
                 out
                 (loop (* x out) (- x 1))))
         (loop n 1))
-        
+
     =>
-    
+
     (LAMBDA-CLOSURE (N) (BEGIN (DEFINE (LOOP X OUT) (IF (< X 2) OUT (LOOP (* X OUT) (- X 1)))) (LOOP N 1)) (ENV))
     """
     if isatom(car(rest)):
@@ -197,7 +199,9 @@ def eval_delete(rest, env):
 def eval_load(file, env):
     """Modify current environment by evaluating file"""
     with open(car(file)) as stream:
+        print("!!READING FILE {}".format(file))
         env = repl(env, stream)
+        print("!!READ FILE!")
     return None, env
 
 # Not part of 'forms', just used by the others
@@ -224,15 +228,15 @@ forms = {
 }
 
 def lookup(id, env, msg):
-    """Find id in env or builtins, else raise NameError with msg""" 
+    """Find id in env or builtins, else raise NameError with msg"""
     while not isnil(env):
         if id == car(car(env)):
             return car(cdr(car(env)))
         env = cdr(env)
     if id in builtin_ops:
         return id
-    raise NameError(msg % id)
-    
+    raise NameError(msg.format(id))
+
 def remove(id, env):
     """Attempt to remove an id from the environment"""
     new_env = None
@@ -273,7 +277,7 @@ def lisp_eval(ls, env):
         if ls == 'HELP':
             return help(env)
         elif isinstance(ls, Symbol):
-            return lookup(ls, env.list, "Cannot find '%s'"), env
+            return lookup(ls, env.list, "Cannot find '{}'"), env
         else:
             return ls, env
     else:
@@ -296,7 +300,7 @@ def lisp_apply(function, params, env):
         if op is not None:
             value = op(params)
         else:
-            value, env = lisp_apply(lookup(function, env.list, "Cannot find/apply '%s'"), params, env)
+            value, env = lisp_apply(lookup(function, env.list, "Cannot find/apply '{}'"), params, env)
     else:
         if car(function) == 'LAMBDA-CLOSURE':
             new_env = Environment(update(closure_params(function), params, append(closure_env(function).list, env.list)))
@@ -317,20 +321,20 @@ def repl(env=Environment(None), stream=sys.stdin, library=None, debug=False):
         try:
             env = repl(env, stream=open(library))
         except IOError:
-            print "Warning: Could not load library '%s'" % library
+            print("Warning: Could not load library '{}'".format(library))
         else:
             if parser.interactive:
-                print "Using library '%s'. Type 'help' for more information." % library
+                print("Using library '{}'. Type 'help' for more information.".format(library))
     while 1:
         value = None
         try:
             value, env = lisp_eval(parser.parse(), env)
             if parser.interactive:
-                print "Value: %s\n" % str_list(value)
+                print("Value: {}\n".format(str_list(value)))
             if debug:
-                print "[DEBUG] Environment: %s" % str_list(env.list)
+                print("[DEBUG] Environment: {}".format(str_list(env.list)))
         except (KeyboardInterrupt, EOFError):
             break
         except Exception as e:
-            print "Error: %s\n" % str_list(e)
+            print("Error: {}\n".format(str_list(e)))
     return env
