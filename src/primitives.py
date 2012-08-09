@@ -12,7 +12,7 @@ lists. This is done for performance and does not affect the user.
 from functools import wraps
 
 __all__ = [
-    'cons', 'car', 'cdr', 'isnil', 'isatom', 'ispair', 'make_list', 'append',
+    'cons', 'car', 'cdr', 'isnil', 'isatom', 'ispair', 'append',
     'str_list', 'Symbol', 'Environment'
 ]
 
@@ -49,40 +49,27 @@ def type_check(types):
 
 def cons(a, b):
     """Tuples instantiate fast and have random access"""
-    return (a, b)
+    return [a] + b
 
-@type_check(tuple)
+@type_check(list)
 def car(x):
     return x[0]
 
-@type_check(tuple)
+@type_check(list)
 def cdr(x):
-    """
-    cdr cheats - this works on 'real' linked-lists as well as
-    'flat' s-expressions represented by random access tuples.
-    This allows us to optimize accessing values and cons'ing.
-
-    for example:
-        cdr of ('1', ('2', ('3', None))) is ('2', ('3', None))
-        cdr of ('1', '2', '3', None) is ('2', '3', None)
-    """
-
-    if len(x) == 2:
-        return x[-1]
-    else:
-        return x[1:]
+    return x[1:]
 
 def isnil(thing):
-    return thing is None
+    return thing == []
 
 def isatom(thing):
-    return not isinstance(thing, tuple)
+    return not isinstance(thing, list)
 
 def ispair(thing):
     if isatom(thing):
         return False
     else:
-        first, rest = car(thing), cdr(thing)
+        first, *rest = thing
         return isatom(first) and not isnil(rest) and isatom(rest)
 
 def isenv(thing):
@@ -93,9 +80,9 @@ def str_list(ls, sep=' '):
     out = []
     if isatom(ls):
         if ls is True:
-            return 'T'
-        elif ls is None or ls is False:
-            return 'NIL'
+            return '#t'
+        elif ls is False:
+            return '#f'
         else:
             return str(ls)
     while not isnil(ls):
@@ -112,15 +99,6 @@ def str_list(ls, sep=' '):
         ls = cdr(ls)
     return '(' + ''.join(out) + ')'
 
-def make_list(*args):
-    """Make tuple None-terminated"""
-    return args + tuple([None])
-
-@type_check((tuple, type(None)))
+@type_check(list)
 def append(ls1, ls2):
-    if isnil(ls1):
-        return ls2
-    elif isnil(ls2):
-        return ls1
-    else:
-        return cons(car(ls1), append(cdr(ls1), ls2))
+    return ls1 + ls2

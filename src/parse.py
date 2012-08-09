@@ -19,7 +19,7 @@ __all__ = ['Parser']
 
 import sys
 from functools import wraps
-from src.primitives import make_list, str_list, Symbol
+from src.primitives import str_list, Symbol
 from re import compile
 
 class ParseError(BaseException):
@@ -30,7 +30,7 @@ class Enum(object):
     """Python doesn't have enums. This is close enough."""
     def __init__(self, *args):
         for i, name in enumerate(args):
-            self.__setattr__(name, i)
+            setattr(self, name, i)
         self.last = i
         self.names = args
 
@@ -40,7 +40,7 @@ class Enum(object):
 # This is kind of overkill since we really only test against LPAREN, RPAREN,
 # QUOTE, and EOL. Consider it future-proofing. Use like lexemes.LPAREN or
 # if thing in lexemes:
-lexemes = Enum('LPAREN', 'RPAREN', 'INT', 'FLOAT', 'STRING', 'SYMBOL', 'QUOTE', 'NIL', 'TRUE', 'EOL')
+lexemes = Enum('LPAREN', 'RPAREN', 'INT', 'FLOAT', 'STRING', 'SYMBOL', 'QUOTE', 'NIL', 'TRUE', 'FALSE', 'EOL')
 
 class Token(object):
     """Carries around an item's token type and canonical value"""
@@ -64,11 +64,13 @@ def make_token(atom, str=False):
         # Canonical casing
         value = value.upper()
         # T => Python True
-        if value == 'T':
+        if value == '#T':
             token = Token(lexemes.TRUE, True)
-        # NIL => Python False
+        elif value == '#F':
+            token = Token(lexemes.FALSE, False)
+        # NIL => Python empty list
         elif value == 'NIL':
-            token = Token(lexemes.NIL, None)
+            token = Token(lexemes.NIL, [])
         # INT => Python arbitrary precision int
         elif INT_PATTERN.match(value):
             token = Token(lexemes.INT, int(value))
@@ -205,23 +207,11 @@ class Parser(object):
         else:
             return token.value
 
-    def to_list(self, s_expr):
-        """Transform nested list into None-terminated nested tuple"""
-        if isinstance(s_expr, list):
-            if len(s_expr) == 0:
-                return None
-            else:
-                items = []
-                for term in s_expr:
-                    items.append(self.to_list(term))
-                return make_list(*items)
-        else:
-            return s_expr
-
     def parse(self):
         try:
             self.stream = self.lex(self.readFirst)
-            value = self.to_list(self.s_expr())
+#value = self.to_list(self.s_expr())
+            value = self.s_expr()
             self.finish("Extra input following '{}'".format(str_list(value)))
             return value
         except ParseError as e:

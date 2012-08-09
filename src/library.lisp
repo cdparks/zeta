@@ -36,7 +36,7 @@
         (cond
             ((null? rest) nil)
             ((= x (car rest)) count)
-            (T (loop (1+ count) (cdr rest)))))
+            (#t (loop (1+ count) (cdr rest)))))
     (loop 1 ls]
 
 ;; Use the specified binary function `fn' to reduce the list `ls' to a single
@@ -64,21 +64,21 @@
     (cond
         ((and (null? ls) (/= n 0)) (error "Accessed beyond end of list"))
         ((or (null? ls) (= n 0)) ls)
-        (T (drop (1- n) (cdr ls]
+        (#t (drop (1- n) (cdr ls]
 
 ;; Return the sublist of `ls' made up of the first `n' elements
 (define (take n ls)
     (cond
         ((and (null? ls) (/= n 0)) (error "Accessed beyond end of list"))
         ((or (null? ls) (= n 0)) nil)
-        (T (cons (car ls) (take (1- n) (cdr ls]
+        (#t (cons (car ls) (take (1- n) (cdr ls]
 
 ;; Return the `n'th element of a list `ls'
 (define (list-ref n ls)
     (cond
         ((null? ls) (error "Accessed beyond end of list"))
         ((= n 1) (car ls))
-        (T (list-ref (1- n) (cdr ls]
+        (#t (list-ref (1- n) (cdr ls]
 
 ;; Reverse a list `ls'
 (define (reverse ls)
