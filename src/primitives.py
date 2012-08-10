@@ -35,20 +35,25 @@ class Environment(object):
     def __repr__(self):
         return "(ENV)"
 
-def type_check(types):
-    """Certain functions should check their arguments"""
+def type_check(*arg_types, **kw_types):
     def make_decorator(function):
         @wraps(function)
-        def checked(*args):
-            for thing in args:
-                if not isinstance(thing, types):
+        def checked(*args, **kwargs):
+            if len(args) != len(arg_types):
+                raise TypeError("Wrong number of positional arguments")
+            for arg, type in zip(args, arg_types):
+                if not isinstance(arg, type):
                     raise TypeError("Wrong argument type")
-            return function(*args)
+            for key, value in kwargs.items():
+                if key in kw_types and not isinstance(value, kw_types[kw]):
+                    raise TypeError("Wrong argument type")
+            return function(*args, **kwargs)
         return checked
     return make_decorator
 
+
+@type_check(object, list)
 def cons(a, b):
-    """Tuples instantiate fast and have random access"""
     return [a] + b
 
 @type_check(list)
@@ -99,6 +104,6 @@ def str_list(ls, sep=' '):
         ls = cdr(ls)
     return '(' + ''.join(out) + ')'
 
-@type_check(list)
+@type_check(list, list)
 def append(ls1, ls2):
     return ls1 + ls2
