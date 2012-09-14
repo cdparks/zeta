@@ -1,44 +1,16 @@
 from __future__ import print_function
 
-# Author: Christopher D. Parks
-# Email: chris.parks@uky.edu
-# Date: 4 December 2011
-# Class: CS655
-
 """
 Evaluates lisp expressions. 'repl' reads from stdin. The other stuff probably
 shouldn't be called unless you know what you're doing.
 """
 
-__all__ = ['eval', 'repl']
+__all__ = ['zeta', 'repl', 'lisp_eval', 'parse', 'parse_file']
 
-import sys
-import operator
-from functools import wraps
-from src.parse import Parser
+from src.parsers import parse, parse_file
 from src.primitives import *
 from src.operators import *
 
-def help(env):
-    """Print environment, forms, and builtin operators/functions"""
-    def env_only(env):
-        if isnil(env):
-            print("\t{}".format(str_list(env)))
-        else:
-            print("\t{} -> {}".format(str_list(car(car(env))), str_list(car(cdr(car(env))))))
-            env_only(cdr(env))
-    print("Environment:")
-    env_only(env.list)
-    print("Forms:")
-    for name in sorted(forms.keys()):
-        print("\t{}".format(name))
-    print_ops()
-    return [], env
-
-# The following 10 functions are form evaluation actions. They're fairly self-
-# explanatory, but the policy is important. Each function takes a list and an
-# environment and returns a value and an environment. This consistency allows
-# us to put them in a jump table called 'forms' and dispatch from there.
 def eval_if(exprs, env):
     """ (if (null? ls) nil (car ls)) """
     test, _ = lisp_eval(car(exprs), env)
@@ -48,61 +20,45 @@ def eval_if(exprs, env):
         return lisp_eval(car(cdr(cdr(exprs))), env)
 
 def eval_let(body, env):
-    """ (let ((x 2) (y 8)) (+ x y)) """
-    def make_env(ls, env):
-        if isnil(ls):
-            return env.list
-        else:
-            first, *rest = ls
-            name = car(first)
-            value, _ = lisp_eval(car(cdr(first)), env)
-            return cons([name, value], make_env(rest, env))
-    local_env = Environment(make_env(car(body), env))
-    value, _ = lisp_eval([Symbol('BEGIN')] + cdr(body), local_env)
+    """ (let ([x 2] [y 8]) (+ x y)) """
+    local_env = Environment(scope=env)
+    for name, expr in car(body):
+        value, _ = lisp_eval(expr, local_env)
+        local_env[name] = value
+    value, _ = lisp_eval(single(Symbol('BEGIN')) + cdr(body), local_env)
     return value, env
 
 def eval_lambda(function, env):
     """
     (lambda (x)(* x x)) => (LAMBDA (X)(BEGIN (* x x)) (ENV))
     """
-    params = car(function)
+    formals = car(function)
     if isatom(car(cdr(function))):
         body = car(cdr(function))
     else:
         body = car(car(cdr(function)))
-    if body == 'DEF-BEGIN':
-        body = [Symbol('BEGIN')] + cdr(car(cdr(function)))
+    if body == Symbol('DEF-BEGIN'):
+        body = single(Symbol('BEGIN')) + cdr(car(cdr(function)))
     else:
-        body = [Symbol('BEGIN')] + cdr(function)
-    return ['LAMBDA-CLOSURE', params, body, env], env
+        body = single(Symbol('BEGIN')) + cdr(function)
+    return (Symbol('LAMBDA-CLOSURE'), formals, body, env), env
 
 def eval_quote(ls, env):
     """ (quote (1 2 3 4)) or '(1 2 3 4) """
-    def fix(ls):
-        """Turn a non-canonical list into a canonical one"""
-        real = []
-        while not isnil(ls):
-            first, *ls = ls
-            real = cons(first, real)
-        return list(reversed(real))
-    value = car(ls)
-    if isatom(value):
-        return value, env
-    else:
-        return fix(value), env
+    return car(ls), env
 
 def eval_cond(conds, env):
     """
     (cond
         ((null? ls) nil)
-        (T (car ls)))
+        (#t (car ls)))
     """
     while not isnil(conds):
         test, _ = lisp_eval(car(car(conds)), env)
         if test:
             return lisp_eval(car(cdr(car(conds))), env)
         conds = cdr(conds)
-    return [], env
+    return NIL, env
 
 def eval_begin(expressions, env):
     """
@@ -110,7 +66,7 @@ def eval_begin(expressions, env):
         (print "twice x" (* 2 x))
         (print "x squared" (* x x)))
     """
-    value = []
+    value = NIL
     while not isnil(expressions):
         value, env = lisp_eval(car(expressions), env)
         expressions = cdr(expressions)
@@ -118,7 +74,7 @@ def eval_begin(expressions, env):
 
 def eval_or(expressions, env):
     """Short circuit or"""
-    value = []
+    value = False
     while not isnil(expressions):
         test, _ = lisp_eval(car(expressions), env)
         value = value or test
@@ -134,7 +90,7 @@ def eval_and(expressions, env):
         test, _ = lisp_eval(car(expressions), env)
         value = value and test
         if not value:
-            return [], env
+            return False, env
         expressions = cdr(expressions)
     return value, env
 
@@ -148,102 +104,57 @@ def eval_define(rest, env):
         (if (= y 0
             x
             (gcd y (mod x y)))))
-
     =>
-
     (LAMBDA-CLOSURE (X Y) (BEGIN (IF (= Y 0) X (GCD Y (MOD X Y)))) (ENV))
-
-    Allows multiple expressions:
-    (define (factorial n)
-        (define (loop x out)
-            (if (< x 2)
-                out
-                (loop (* x out) (- x 1))))
-        (loop n 1))
-
-    =>
-
-    (LAMBDA-CLOSURE (N) (BEGIN (DEFINE (LOOP X OUT) (IF (< X 2) OUT (LOOP (* X OUT) (- X 1)))) (LOOP N 1)) (ENV))
     """
     if isatom(car(rest)):
         name = car(rest)
         value, _  = lisp_eval(car(cdr(rest)), env)
-        return [], Environment([[name, value]] + env.list)
+        env[name] = value
+        return NIL, env
     else:
         name = car(car(rest))
-        params = cdr(car(rest))
-        body = ['DEF-BEGIN'] + cdr(rest)
-        function = [Symbol('LAMBDA'), params, body]
-        env = Environment(remove(name, env.list))
+        formals = cdr(car(rest))
+        body = single(Symbol('DEF-BEGIN')) + cdr(rest)
+        function = (Symbol('LAMBDA'), formals, body)
         closure, _  = lisp_eval(function, env)
-        return [], Environment([[name, closure]] + env.list)
+        env[name] = closure
+        return NIL, env
 
 def eval_delete(rest, env):
     if isatom(car(rest)):
-        env = Environment(remove(car(rest), env.list))
-    return [], env
-
-def eval_load(file, env):
-    """Modify current environment by evaluating file"""
-    with open(car(file)) as stream:
-        env = repl(env, stream)
-    return [], env
+        env.pop(car(rest))
+    return NIL, env
 
 # Not part of 'forms', just used by the others
 def eval_list(ls, env):
     if isnil(ls):
-        return []
+        return NIL
     else:
         value, _ = lisp_eval(car(ls), env)
         return cons(value, eval_list(cdr(ls), env))
 
+def eval_load(ls, env):
+    with open(car(ls)) as stream:
+        value = NIL
+        for expression in parse_file(stream):
+            value, env = lisp_eval(expression, env)
+        return value, env
+
 # Jump table for forms.
 forms = {
-    'IF': eval_if,
-    'LAMBDA': eval_lambda,
-    'LET': eval_let,
-    'QUOTE': eval_quote,
-    'COND': eval_cond,
-    'OR': eval_or,
-    'AND': eval_and,
-    'BEGIN': eval_begin,
-    'DEFINE': eval_define,
-    'DELETE': eval_delete,
-    'LOAD': eval_load,
+    Symbol('IF'): eval_if,
+    Symbol('LAMBDA'): eval_lambda,
+    Symbol('LET'): eval_let,
+    Symbol('QUOTE'): eval_quote,
+    Symbol('COND'): eval_cond,
+    Symbol('OR'): eval_or,
+    Symbol('AND'): eval_and,
+    Symbol('BEGIN'): eval_begin,
+    Symbol('DEFINE'): eval_define,
+    Symbol('DELETE'): eval_delete,
+    Symbol('LOAD'): eval_load,
 }
-
-def lookup(id, env, msg):
-    """Find id in env or builtins, else raise NameError with msg"""
-    while not isnil(env):
-        if id == car(car(env)):
-            return car(cdr(car(env)))
-        env = cdr(env)
-    if id in builtin_ops:
-        return id
-    raise NameError(msg.format(id))
-
-def remove(id, env):
-    """Attempt to remove an id from the environment"""
-    new_env = []
-    while not isnil(env):
-        if id != car(car(env)):
-            new_env = cons(car(env), new_env)
-        env = cdr(env)
-    return list(reversed(new_env))
-
-def update(formals, actuals, env):
-    """Bind formals to actuals in environment"""
-    while 1:
-        if isnil(formals):
-            if isnil(actuals):
-                return env
-            raise TypeError("Too many arguments")
-        elif isnil(actuals):
-            raise TypeError("Not enough arguments")
-        else:
-            env = cons(cons(car(formals), cons(car(actuals), [])), env)
-        formals = cdr(formals)
-        actuals = cdr(actuals)
 
 # Some useful selectors
 def closure_body(closure):
@@ -255,14 +166,13 @@ def closure_params(closure):
 def closure_env(closure):
     return car(cdr(cdr(cdr(closure))))
 
+
 def lisp_eval(ls, env):
-    """Evaluate s-expression parsed into nested None-terminated tuple"""
+    """Evaluate s-expression parsed into nested tuples"""
     #print("EVAL: {}\n".format(str_list(ls)))
     if isatom(ls) or isnil(ls):
-        if ls == 'HELP':
-            return help(env)
-        elif isinstance(ls, Symbol):
-            return lookup(ls, env.list, "Cannot find '{}'"), env
+        if isinstance(ls, Symbol):
+            return env[ls], env
         else:
             return ls, env
     else:
@@ -276,50 +186,47 @@ def lisp_eval(ls, env):
         else:
             return lisp_apply(first, eval_list(rest, env), env)
 
-def lisp_apply(function, params, env):
-    """Apply function to params in environment"""
-    #print("APPLY: {}".format(str_list(function)))
+def lisp_apply(closure, actuals, env):
+    """Apply function to actual parameters"""
+    #print("APPLY: {}".format(str_list(closure)))
     #print("ON:    {}\n".format(str_list(params)))
-    if isatom(function):
-        op = builtin_ops.get(function, None)
-        if op is not None:
-            value = op(params)
+    if isatom(closure):
+        function = env[closure]
+        if hasattr(function, '__call__'):
+            value = function(actuals)
         else:
-            value, env = lisp_apply(lookup(function, env.list, "Cannot find/apply '{}'"), params, env)
+            value, env = lisp_apply(function, actuals, env)
     else:
-        if car(function) == 'LAMBDA-CLOSURE':
-            new_env = Environment(update(closure_params(function), params, closure_env(function).list + env.list))
-            value, _ = lisp_eval(closure_body(function), new_env)
+        if car(closure) == Symbol('LAMBDA-CLOSURE'):
+            formals = closure_params(closure)
+            if len(formals) != len(actuals):
+                raise Exception("Wrong number of actual parameters")
+            parameter_mapping = {formal: actual for formal, actual in zip(formals, actuals)}
+            new_env = Environment.combine(closure_env(closure), env)
+            new_env.update(**parameter_mapping)
+            value, _ = lisp_eval(closure_body(closure), new_env)
         else:
-            function, _  = lisp_eval(function, env)
-            value, env = lisp_apply(function, params, env)
+            closure, _  = lisp_eval(closure, env)
+            value, env = lisp_apply(closure, actuals, env)
     return value, env
 
-def repl(env=Environment([]), stream=sys.stdin, library=None, debug=False):
-    """
-    Provide read-eval-print-loop on stream in environment. Returns modified
-    environment.
-    """
-
-    parser = Parser(stream)
-    if library is not None:
-        try:
-            env = repl(env, stream=open(library))
-        except IOError:
-            print("Warning: Could not load library '{}'".format(library))
-        else:
-            if parser.interactive:
-                print("Using library '{}'. Type 'help' for more information.".format(library))
+def repl(env):
+    print("Type (help) for global definitions")
     while 1:
-        value = []
+        value = NIL
         try:
-            value, env = lisp_eval(parser.parse(), env)
-            if parser.interactive:
-                print("Value: {}\n".format(str_list(value)))
-            if debug:
-                print("[DEBUG] Environment: {}".format(str_list(env.list)))
+            value, env = lisp_eval(parse(), env)
+            print("Value: {}\n".format(str_list(value)))
         except (KeyboardInterrupt, EOFError):
             break
         except Exception as e:
             print("Error: {}\n".format(str_list(e)))
-    return env
+
+def zeta(stream):
+    _, env = eval_load(single('src/library.lisp'), global_env)
+    if stream.isatty():
+        repl(env)
+    else:
+        for expression in parse_file(stream):
+            _, env = lisp_eval(expression, env)
+

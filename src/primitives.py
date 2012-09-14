@@ -1,39 +1,71 @@
-# Author: Christopher D. Parks
-# Email: chris.parks@uky.edu
-# Date: 4 December 2011
-# Class: CS655
-
-"""
-Includes the basic things needed to make the interpreter work. There's some
-weirdness in 'cdr' related to the fact that the parser produces non-canonical
-lists. This is done for performance and does not affect the user.
-"""
-
 from functools import wraps
 
 __all__ = [
-    'cons', 'car', 'cdr', 'isnil', 'isatom', 'ispair', 'append',
+    'NIL', 'single', 'cons', 'car', 'cdr', 'isnil', 'isatom', 'append',
     'str_list', 'Symbol', 'Environment'
 ]
+
+NIL = ()
 
 class Symbol(str):
     """
     We need to use something string-like for symbols but we want to be able to
     differentiate them using isinstance(thing, type)
     """
-    pass
 
-class Environment(object):
-    """
-    Environments are still represented as association lists. This just wraps
-    an association list so closures aren't printing huge lists. Purely
-    aesthetic.
-    """
-    def __init__(self, list):
-        self.list = list
+    def __new__(cls, value):
+        return str.__new__(cls, value.upper())
+
+class Empty(object):
+    def __init__(self):
+        self.bindings = NIL
+
+empty = Empty()
+
+class Environment(Empty):
+    def __init__(self, scope=empty, **local_bindings):
+        if hasattr(scope, 'bindings'):
+            self.bindings = cons(local_bindings, scope.bindings)
+        else:
+            self.bindings = cons(local_bindings, scope)
+
+    @classmethod
+    def combine(cls, env1, env2):
+        return Environment(scope=env1.bindings + env2.bindings)
 
     def __repr__(self):
-        return "(ENV)"
+        return "<ENV>"
+
+    def get(self, key, default=NIL):
+        try:
+            return self[key]
+        except NameError:
+            return default
+
+    def __getitem__(self, key):
+        for binding in self.bindings:
+            if key in binding:
+                return binding[key]
+        raise NameError("No binding for name '{}' in scope".format(key))
+
+    def update(self, iterable=None, **kwargs):
+        if iterable is None:
+            iterable = NIL
+        car(self.bindings).update(iterable, **kwargs)
+
+    def __setitem__(self, key, value):
+        car(self.bindings)[key] = value
+
+    def pop(self, key):
+        for binding in self.bindings:
+            if key in binding:
+                binding.pop(key)
+        raise NameError("No binding for name '{}' in scope".format(key))
+
+    def __iter__(self):
+        for binding in self.bindings:
+            for key in binding:
+                yield key
 
 def type_check(*arg_types, **kw_types):
     def make_decorator(function):
@@ -51,59 +83,45 @@ def type_check(*arg_types, **kw_types):
         return checked
     return make_decorator
 
+def single(x):
+    '''Making singleton tuples is ugly'''
+    return x,
 
-@type_check(object, list)
+@type_check(object, tuple)
 def cons(a, b):
-    return [a] + b
+    return single(a) + b
 
-@type_check(list)
+@type_check(tuple)
 def car(x):
     return x[0]
 
-@type_check(list)
+@type_check(tuple)
 def cdr(x):
     return x[1:]
 
 def isnil(thing):
-    return thing == []
+    return thing == NIL
 
 def isatom(thing):
-    return not isinstance(thing, list)
-
-def ispair(thing):
-    if isatom(thing):
-        return False
-    else:
-        first, *rest = thing
-        return isatom(first) and not isnil(rest) and isatom(rest)
+    return not isinstance(thing, tuple)
 
 def isenv(thing):
     return isinstance(thing, Environment)
 
-def str_list(ls, sep=' '):
-    """Print lists, atoms, and dotted pairs"""
-    out = []
+def str_list(ls):
     if isatom(ls):
         if ls is True:
             return '#t'
         elif ls is False:
             return '#f'
+        elif ls == NIL:
+            return 'nil'
+        elif hasattr(ls, '__call__'):
+            return '#{native-code}'
         else:
             return str(ls)
-    while not isnil(ls):
-        if isatom(ls):
-            if isenv(ls):
-                out.append(str_list(ls))
-            else:
-                out.append('.' + sep + str_list(ls))
-            break
-        elif isnil(cdr(ls)):
-            out.append(str_list(car(ls)))
-        else:
-            out.append(str_list(car(ls)) + sep)
-        ls = cdr(ls)
-    return '(' + ''.join(out) + ')'
+    return '(' + ' '.join(str_list(x) for x in ls) + ')'
 
-@type_check(list, list)
+@type_check(tuple, tuple)
 def append(ls1, ls2):
     return ls1 + ls2

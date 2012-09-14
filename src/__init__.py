@@ -3,7 +3,5 @@
 # Date: 4 December 2011
 # Class: CS655
 
-from src.eval import repl
-from src.parse import Parser
+from src.eval import *
 
-__all__ = ['repl', 'Parser']

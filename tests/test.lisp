@@ -3,7 +3,7 @@
 	(print name "->" expression)
 	(if (= expression expected)
 		nil
-		(print "FAILED!"]
+		(print "FAILED!")))
 
 ;; Primitive operations
 (test "1. car" (car (cons 1 (cons 2 nil))) 1)
@@ -14,13 +14,13 @@
 (test "4. Deep binding"
 	(((lambda (x)
 		(lambda (y)
-			(cons x y))) 3) 4)
-	(cons 3 4))
+			(list x y))) 3) 4)
+    (list 3 4))
 
 (define (factorial n)
 	(if (< n 2)
 		1
-		(* n (factorial (1- n]
+		(* n (factorial (-- n)))))
 (test "5. factorial 10" (factorial 10) 3628800)
 
 ;; Library functions
@@ -48,3 +48,4 @@
 (test "11. tail-range 1..10" (tail-range 1 10) (range 1 10))
 
 (print "Tests completed")
+
