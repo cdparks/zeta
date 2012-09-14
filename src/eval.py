@@ -5,7 +5,7 @@ Evaluates lisp expressions. 'repl' reads from stdin. The other stuff probably
 shouldn't be called unless you know what you're doing.
 """
 
-__all__ = ['zeta', 'repl', 'lisp_eval', 'parse', 'parse_file']
+__all__ = ['zeta', 'repl', 'eval', 'parse', 'parse_file']
 
 from src.parsers import parse, parse_file
 from src.primitives import *
@@ -13,19 +13,19 @@ from src.operators import *
 
 def eval_if(exprs, env):
     """ (if (null? ls) nil (car ls)) """
-    test, _ = lisp_eval(car(exprs), env)
+    test, _ = eval(car(exprs), env)
     if test:
-        return lisp_eval(car(cdr(exprs)), env)
+        return eval(car(cdr(exprs)), env)
     else:
-        return lisp_eval(car(cdr(cdr(exprs))), env)
+        return eval(car(cdr(cdr(exprs))), env)
 
 def eval_let(body, env):
     """ (let ([x 2] [y 8]) (+ x y)) """
     local_env = Environment(scope=env)
     for name, expr in car(body):
-        value, _ = lisp_eval(expr, local_env)
+        value, _ = eval(expr, local_env)
         local_env[name] = value
-    value, _ = lisp_eval(single(Symbol('BEGIN')) + cdr(body), local_env)
+    value, _ = eval(single(Symbol('BEGIN')) + cdr(body), local_env)
     return value, env
 
 def eval_lambda(function, env):
@@ -54,9 +54,9 @@ def eval_cond(conds, env):
         (#t (car ls)))
     """
     while not isnil(conds):
-        test, _ = lisp_eval(car(car(conds)), env)
+        test, _ = eval(car(car(conds)), env)
         if test:
-            return lisp_eval(car(cdr(car(conds))), env)
+            return eval(car(cdr(car(conds))), env)
         conds = cdr(conds)
     return NIL, env
 
@@ -68,7 +68,7 @@ def eval_begin(expressions, env):
     """
     value = NIL
     while not isnil(expressions):
-        value, env = lisp_eval(car(expressions), env)
+        value, env = eval(car(expressions), env)
         expressions = cdr(expressions)
     return value, env
 
@@ -76,7 +76,7 @@ def eval_or(expressions, env):
     """Short circuit or"""
     value = False
     while not isnil(expressions):
-        test, _ = lisp_eval(car(expressions), env)
+        test, _ = eval(car(expressions), env)
         value = value or test
         if value:
             return True, env
@@ -87,7 +87,7 @@ def eval_and(expressions, env):
     """Short circuit and"""
     value = True
     while not isnil(expressions):
-        test, _ = lisp_eval(car(expressions), env)
+        test, _ = eval(car(expressions), env)
         value = value and test
         if not value:
             return False, env
@@ -109,7 +109,7 @@ def eval_define(rest, env):
     """
     if isatom(car(rest)):
         name = car(rest)
-        value, _  = lisp_eval(car(cdr(rest)), env)
+        value, _  = eval(car(cdr(rest)), env)
         env[name] = value
         return NIL, env
     else:
@@ -117,7 +117,7 @@ def eval_define(rest, env):
         formals = cdr(car(rest))
         body = single(Symbol('DEF-BEGIN')) + cdr(rest)
         function = (Symbol('LAMBDA'), formals, body)
-        closure, _  = lisp_eval(function, env)
+        closure, _  = eval(function, env)
         env[name] = closure
         return NIL, env
 
@@ -131,14 +131,14 @@ def eval_list(ls, env):
     if isnil(ls):
         return NIL
     else:
-        value, _ = lisp_eval(car(ls), env)
+        value, _ = eval(car(ls), env)
         return cons(value, eval_list(cdr(ls), env))
 
 def eval_load(ls, env):
     with open(car(ls)) as stream:
         value = NIL
         for expression in parse_file(stream):
-            value, env = lisp_eval(expression, env)
+            value, env = eval(expression, env)
         return value, env
 
 # Jump table for forms.
@@ -167,7 +167,7 @@ def closure_env(closure):
     return car(cdr(cdr(cdr(closure))))
 
 
-def lisp_eval(ls, env):
+def eval(ls, env):
     """Evaluate s-expression parsed into nested tuples"""
     #print("EVAL: {}\n".format(str_list(ls)))
     if isatom(ls) or isnil(ls):
@@ -182,11 +182,11 @@ def lisp_eval(ls, env):
             if action is not None:
                 return action(rest, env)
             else:
-                return lisp_apply(first, eval_list(rest, env), env)
+                return apply(first, eval_list(rest, env), env)
         else:
-            return lisp_apply(first, eval_list(rest, env), env)
+            return apply(first, eval_list(rest, env), env)
 
-def lisp_apply(closure, actuals, env):
+def apply(closure, actuals, env):
     """Apply function to actual parameters"""
     #print("APPLY: {}".format(str_list(closure)))
     #print("ON:    {}\n".format(str_list(params)))
@@ -195,7 +195,7 @@ def lisp_apply(closure, actuals, env):
         if hasattr(function, '__call__'):
             value = function(actuals)
         else:
-            value, env = lisp_apply(function, actuals, env)
+            value, env = apply(function, actuals, env)
     else:
         if car(closure) == Symbol('LAMBDA-CLOSURE'):
             formals = closure_params(closure)
@@ -204,10 +204,10 @@ def lisp_apply(closure, actuals, env):
             parameter_mapping = {formal: actual for formal, actual in zip(formals, actuals)}
             new_env = Environment.combine(closure_env(closure), env)
             new_env.update(**parameter_mapping)
-            value, _ = lisp_eval(closure_body(closure), new_env)
+            value, _ = eval(closure_body(closure), new_env)
         else:
-            closure, _  = lisp_eval(closure, env)
-            value, env = lisp_apply(closure, actuals, env)
+            closure, _ = eval(closure, env)
+            value, env = apply(closure, actuals, env)
     return value, env
 
 def repl(env):
@@ -215,7 +215,7 @@ def repl(env):
     while 1:
         value = NIL
         try:
-            value, env = lisp_eval(parse(), env)
+            value, env = eval(parse(), env)
             print("Value: {}\n".format(str_list(value)))
         except (KeyboardInterrupt, EOFError):
             break
@@ -228,5 +228,5 @@ def zeta(stream):
         repl(env)
     else:
         for expression in parse_file(stream):
-            _, env = lisp_eval(expression, env)
+            _, env = eval(expression, env)
 
