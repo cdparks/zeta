@@ -126,14 +126,6 @@ def eval_delete(rest, env):
         env.pop(car(rest))
     return NIL, env
 
-# Not part of 'forms', just used by the others
-def eval_list(ls, env):
-    if isnil(ls):
-        return NIL
-    else:
-        value, _ = eval(car(ls), env)
-        return cons(value, eval_list(cdr(ls), env))
-
 def eval_load(ls, env):
     with open(car(ls)) as stream:
         value = NIL
@@ -170,21 +162,15 @@ def closure_env(closure):
 def eval(ls, env):
     """Evaluate s-expression parsed into nested tuples"""
     #print("EVAL: {}\n".format(str_list(ls)))
-    if isatom(ls) or isnil(ls):
-        if isinstance(ls, Symbol):
-            return env[ls], env
-        else:
-            return ls, env
-    else:
-        first, rest = car(ls), cdr(ls)
-        if isatom(first):
-            action = forms.get(first, None)
-            if action is not None:
-                return action(rest, env)
-            else:
-                return apply(first, eval_list(rest, env), env)
-        else:
-            return apply(first, eval_list(rest, env), env)
+    if isinstance(ls, Symbol):
+        return env[ls], env
+    elif isnil(ls) or not isinstance(ls, tuple):
+        return ls, env
+    first, rest = car(ls), cdr(ls)
+    action = forms.get(first)
+    if action is not None:
+        return action(rest, env)
+    return apply(first, tuple(eval(expr, env)[0] for expr in rest), env)
 
 def apply(closure, actuals, env):
     """Apply function to actual parameters"""
@@ -201,9 +187,8 @@ def apply(closure, actuals, env):
             formals = closure_params(closure)
             if len(formals) != len(actuals):
                 raise Exception("Wrong number of actual parameters")
-            parameter_mapping = {formal: actual for formal, actual in zip(formals, actuals)}
             new_env = Environment.combine(closure_env(closure), env)
-            new_env.update(**parameter_mapping)
+            new_env.update(**dict(zip(formals, actuals)))
             value, _ = eval(closure_body(closure), new_env)
         else:
             closure, _ = eval(closure, env)
