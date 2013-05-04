@@ -11,28 +11,25 @@
 ;; Returns a list containing the values start..stop (inclusive on both ends)
 (define (range start stop)
     (define (loop acc x)
-        (if (> x stop)
-            (reverse acc)
-            (loop (cons x acc) (++ x))))
-    (loop nil start))
+        (if (< x start)
+            acc
+            (loop (cons x acc) (-- x))))
+    (loop nil stop))
 
 ;; Applies the unary function `fn' to each element in the list `ls' and
 ;; collects the output in a list
 (define (map f ls)
-    (define (loop acc x)
-        (if (null? x)
-            (reverse acc)
-            (loop (cons (f (car x)) acc) (cdr x))))
-    (loop nil ls))
+    (define (step acc x)
+        (cons (f x) acc))
+    (reverse (foldl step nil ls)))
 
 ;; Filter list by keeping only elements where pred(element) is #t
 (define (filter pred ls)
-    (define (loop acc x)
-        (cond
-            ((null? x) (reverse acc))
-            ((pred (car x)) (loop (cons (car x) acc) (cdr x)))
-            (#t (loop acc (cdr x)))))
-    (loop nil ls))
+    (define (step acc x)
+        (if (pred x)
+            (cons x acc)
+            acc))
+    (reverse (foldl step nil ls)))
 
 ;; Membership Test for item `x' in list `ls'
 (define (contains x ls)
@@ -61,27 +58,27 @@
 (define (zip l1 l2)
     (define (loop acc x1 x2)
         (if (or (null? x1) (null? x2))
-            (reverse acc)
+            acc
             (loop (cons (list (car x1) (car x2)) acc) (cdr x1) (cdr x2))))
-    (loop nil l1 l2))
+    (reverse (loop nil l1 l2)))
 
-;; Return the length of a list. Not a "deep" length.
+;; Return the length of a list.
 (define (length ls)
     (foldl (lambda (x _) (++ x)) 0 ls))
 
 ;; Return the sublist of `ls' by skipping the first `n' elements
 (define (drop n ls)
     (cond
-        ((and (null? ls) (/= n 0)) (error "Accessed beyond end of list"))
         ((or (null? ls) (= n 0)) ls)
         (#t (drop (-- n) (cdr ls)))))
 
 ;; Return the sublist of `ls' made up of the first `n' elements
 (define (take n ls)
-    (cond
-        ((and (null? ls) (/= n 0)) (error "Accessed beyond end of list"))
-        ((or (null? ls) (= n 0)) nil)
-        (#t (cons (car ls) (take (-- n) (cdr ls))))))
+    (define (loop acc count x)
+        (cond
+            ((or (null? x) (= count n)) acc)
+            (#t (loop (cons (car x) acc) (++ count) (cdr x)))))
+    (reverse (loop nil 0 ls)))
 
 ;; Return the `n'th element of a list `ls'
 (define (list-ref n ls)
