@@ -4,14 +4,35 @@ from collections import namedtuple
 from pyparsing import *
 
 # Constants used by both parsers
-LPAREN, RPAREN, LBRACKET, RBRACKET, LBRACE, RBRACE, QUOTE = "()[]{}'"
+PUNCTUATION = (
+    LPAREN,
+    RPAREN,
+    LBRACKET,
+    RBRACKET,
+    LBRACE,
+    RBRACE,
+    QUOTE,
+) = "()[]{}'"
 
 # Sets of left and right brackets for fast check in parser
-LEFT = set([LPAREN, LBRACKET, LBRACE])
-RIGHT = set([RPAREN, RBRACKET, RBRACE])
+LEFT = {
+    LPAREN,
+    LBRACKET,
+    LBRACE,
+}
+
+RIGHT = {
+    RPAREN,
+    RBRACKET,
+    RBRACE,
+}
 
 # Fast check for match
-MATCHES = set([(LPAREN, RPAREN), (LBRACKET, RBRACKET), (LBRACE, RBRACE)])
+MATCHES = {
+    (LPAREN, RPAREN),
+    (LBRACKET, RBRACKET),
+    (LBRACE, RBRACE),
+}
 
 # Get corresponding right bracket for left bracket
 LEFT2RIGHT = {
@@ -20,14 +41,18 @@ LEFT2RIGHT = {
     LBRACE: RBRACE,
 }
 
-class UnbalancedException(Exception):
+class ParseError(Exception):
+    '''General parse error'''
+    pass
+
+class UnbalancedError(ParseError):
     '''Unbalanced parentheses, brackets, or braces'''
     pass
 
 def balance(left, right):
     '''Are left and right brackets matched?'''
     if (left, right) not in MATCHES:
-        raise UnbalancedException("Expected '{}'".format(LEFT2RIGHT[left]))
+        raise UnbalancedError("Expected '{}'".format(LEFT2RIGHT[left]))
 
 def convert(f):
     '''Parse action that converts the token using unary function f'''

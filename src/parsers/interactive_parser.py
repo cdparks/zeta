@@ -1,7 +1,7 @@
 __all__ = ["parse"]
 
 import readline
-from src.primitives import Symbol
+from src.primitives import Symbol, NIL
 from src.parsers.tokens import atom, comment
 from src.parsers.utils import *
 
@@ -19,7 +19,7 @@ def build_parser():
     pop = stack.pop
     push = stack.append
 
-    def stream():
+    def lex():
         '''Token generator. Yields empty list with no input'''
         for parsed, start, end in lexer.scanString(input('[]> ')):
             for token in parsed:
@@ -28,7 +28,8 @@ def build_parser():
             for parsed, start, end in lexer.scanString(input()):
                 for token in parsed:
                     yield token
-        yield NIL
+        while 1:
+            yield NIL
 
     def s_expr(stream):
         '''Input is an s-expression, a quoted s-expression, or an atom'''
@@ -36,7 +37,7 @@ def build_parser():
         if token in LEFT:
             return nested_expr(stream, token)
         elif token in RIGHT:
-            raise UnbalancedException("Expression cannot begin with '{}'".format(token))
+            raise UnbalancedError("Expression cannot begin with '{}'".format(token))
         elif token == QUOTE:
             return Symbol('QUOTE'), s_expr(stream)
         else:
@@ -62,7 +63,13 @@ def build_parser():
         '''Reset bracket stack and start parsing'''
         while stack:
             pop()
-        return s_expr(stream())
+        stream = lex()
+        expr = s_expr(stream)
+        token = next(stream)
+        if token != NIL:
+           raise ParseError('Unexpected trailing input: "{}"'.format(token))
+        return expr
+
     return parser
 
 parse = build_parser()

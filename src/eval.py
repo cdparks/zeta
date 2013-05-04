@@ -205,7 +205,7 @@ def repl(env):
         except (KeyboardInterrupt, EOFError):
             break
         except Exception as e:
-            print("Error: {}\n".format(str_list(e)))
+            print("{}: {}\n".format(e.__class__.__name__, str_list(e)))
 
 def zeta(stream):
     _, env = eval_load(single('src/library.lisp'), global_env)
