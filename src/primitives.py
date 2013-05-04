@@ -1,8 +1,8 @@
 from functools import wraps
 
 __all__ = [
-    'NIL', 'single', 'cons', 'car', 'cdr', 'isnil', 'isatom', 'append',
-    'str_list', 'Symbol', 'Environment'
+    'NIL', 'single', 'cons', 'car', 'cdr', 'splits', 'isnil', 'isatom', 'append',
+    'str_list', 'Symbol', 'Environment', 'Closure', 'Thunk',
 ]
 
 NIL = ()
@@ -16,58 +16,68 @@ class Symbol(str):
     def __new__(cls, value):
         return str.__new__(cls, value.upper())
 
-class Empty(object):
-    def __init__(self):
-        self.bindings = NIL
+class Thunk(object):
+    """Wrap an expression that can be further simplified"""
+    def __init__(self, value):
+        self.value = value
 
-empty = Empty()
+class Closure(object):
+    """Expression 'body' closes over environment 'env'"""
 
-class Environment(Empty):
-    def __init__(self, scope=empty, **local_bindings):
-        if hasattr(scope, 'bindings'):
-            self.bindings = cons(local_bindings, scope.bindings)
-        else:
-            self.bindings = cons(local_bindings, scope)
+    def __init__(self, body, formals, env):
+        self.body = body
+        self.formals = formals
+        self.env = env
 
-    @classmethod
-    def combine(cls, env1, env2):
-        return Environment(scope=env1.bindings + env2.bindings)
+    def __repr__(self):
+        return '<CLOSURE>'
+
+class Environment(object):
+    """Stack of bindings mapping symbols to values"""
+
+    def __init__(self, scope=None, **bindings):
+        self.next = scope
+        self.bindings = bindings
 
     def __repr__(self):
         return "<ENV>"
 
-    def get(self, key, default=NIL):
-        try:
-            return self[key]
-        except NameError:
-            return default
-
     def __getitem__(self, key):
-        for binding in self.bindings:
-            if key in binding:
-                return binding[key]
+        """Find key starting in most local scope"""
+        scope = self
+        while scope is not None:
+            if key in scope.bindings:
+                return scope.bindings[key]
+            scope = scope.next
         raise NameError("No binding for name '{}' in scope".format(key))
-
-    def update(self, iterable=None, **kwargs):
-        if iterable is None:
-            iterable = NIL
-        car(self.bindings).update(iterable, **kwargs)
 
     def __setitem__(self, key, value):
-        car(self.bindings)[key] = value
+        """Map key to value in current scope"""
+        self.bindings[key] = value
 
     def pop(self, key):
-        for binding in self.bindings:
-            if key in binding:
-                binding.pop(key)
+        """Remove key from environment"""
+        scope = self
+        while scope is not None:
+            if key in scope.bindings:
+                return binding.pop(key)
+            scope = scope.next
         raise NameError("No binding for name '{}' in scope".format(key))
 
+    def update(self, **kwargs):
+        """Add bindings to current scope"""
+        self.bindings.update(**kwargs)
+
     def __iter__(self):
-        for binding in self.bindings:
-            for key in binding:
+        """Get all keys defined in environment"""
+        scope = self
+        while scope is not None:
+            for key in scope.bindings:
                 yield key
+            scope = scope.next
 
 def type_check(*arg_types, **kw_types):
+    """Check types of arguments for function"""
     def make_decorator(function):
         @wraps(function)
         def checked(*args, **kwargs):
@@ -89,24 +99,35 @@ def single(x):
 
 @type_check(object, tuple)
 def cons(a, b):
+    """Push value on front of list"""
     return single(a) + b
 
 @type_check(tuple)
 def car(x):
+    """Get value on front of list"""
     return x[0]
 
 @type_check(tuple)
 def cdr(x):
+    """Get all values comprising tail of list"""
     return x[1:]
 
-def isnil(thing):
-    return thing == NIL
+@type_check(tuple)
+def splits(x):
+    """Split list into head and tail"""
+    return x[0], x[1:]
 
-def isatom(thing):
-    return not isinstance(thing, tuple)
+def isnil(x):
+    """Is x an empty list?"""
+    return x == NIL
 
-def isenv(thing):
-    return isinstance(thing, Environment)
+def isatom(x):
+    """Is x a non-composite object?"""
+    return not isinstance(x, tuple)
+
+def isenv(x):
+    """Is x an environment?"""
+    return isinstance(x, Environment)
 
 def str_list(ls):
     if isatom(ls):
@@ -114,14 +135,17 @@ def str_list(ls):
             return '#t'
         elif ls is False:
             return '#f'
-        elif ls == NIL:
-            return 'nil'
         elif hasattr(ls, '__call__'):
             return '#{native-code}'
         else:
             return str(ls)
-    return '(' + ' '.join(str_list(x) for x in ls) + ')'
+    elif ls == NIL:
+        return 'nil'
+    else:
+        return '(' + ' '.join(str_list(x) for x in ls) + ')'
 
 @type_check(tuple, tuple)
 def append(ls1, ls2):
+    """Append ls2 to ls1"""
     return ls1 + ls2
+

@@ -1,0 +1,23 @@
+1. car -> 1
+2. cdr -> (2)
+3. cons -> (1 2 3)
+4. (+ 1 2 3) -> 6
+5. (* 2 3 4) -> 24
+6. (or #f #f) -> #f
+7. (or #f #t) -> #t
+8. (or #t #f) -> #t
+9. (or #t #t) -> #t
+10. (and #f #f) -> #f
+11. (and #f #t) -> #f
+12. (and #t #f) -> #f
+13. (and #t #t) -> #t
+14. (cond (#f 1) (#f 2)) -> nil
+15. (cond (#f 1) (#t 2)) -> 2
+16. (cond (#t 1) (#f 2)) -> 1
+17. (cond (#t 1) (#t 2)) -> 1
+18. (let ((x 10) (y 12)) (+ x y)) -> 22
+19. (let ((f (lambda (x) (* x x))) (x 12)) (f x)) -> 144
+20. Deep binding -> (3 4)
+21. define factorial, (factorial 10) -> 3628800
+22. define tail-recursive factorial, (factorial 10) -> 3628800
+Basic Tests completed

@@ -21,14 +21,13 @@ def native(function):
     return decorated
 
 def variadic_op(binary_op):
-    """Turn a binary operator into a variadic operator using a fold loop"""
+    """Turn a binary operator into a variadic operator using a left fold"""
     @wraps(binary_op)
     def new_op(ls):
         if isnil(ls):
             raise ValueError("{} takes at least 1 operand".format(binary_op))
         else:
-            out = car(ls)
-            ls = cdr(ls)
+            out, ls = splits(ls)
             while not isnil(ls):
                 out = binary_op(out, car(ls))
                 ls = cdr(ls)
@@ -105,12 +104,11 @@ global_env.update(**{
     }.items()
 })
 
-
 # Add whole-list operators
 global_env[Symbol('PRINT')] = display
 global_env[Symbol('LIST')] = lambda ls: ls
 
-# Generate them all the car/cdr variants
+# Generate car/cdr variants
 def make_variants():
     from itertools import product
 
