@@ -56,7 +56,7 @@ def read():
 
 def _eval(expr):
     """Evaluate an expression in the global environment"""
-    from src import eval
+    from src.eval import eval
     return eval(expr, global_env)
 
 def help():
