@@ -47,6 +47,18 @@ def display(ls):
     print(str_list(ls)[1:-1])
     return NIL
 
+def read():
+    """Read input from stdin"""
+    import sys
+    from src.parsers.file_parser import parse_file
+    from src.parsers.interactive_parser import parse
+    return parse() if sys.stdin.isatty() else parse_file(sys.stdin)
+
+def _eval(expr):
+    """Evaluate an expression in the global environment"""
+    from src import eval
+    return eval(expr, global_env)
+
 def help():
     print("Defined:")
     for key in sorted(global_env):
@@ -58,6 +70,7 @@ global_env = Environment(**{
     Symbol(key): native(value) for key, value in {
         # Nullary operator
         'HELP': help,
+        'READ': read,
 
         # Unary operators
         '++': lambda x: x + 1,
@@ -79,6 +92,7 @@ global_env = Environment(**{
         'SYMBOL?': lambda x: isinstance(x, Symbol),
         'LIST?': lambda x: isnil(x) or not isatom(x),
         'ERROR': error,
+        'EVAL': _eval,
 
         # Binary Operators
         '<': operator.lt,

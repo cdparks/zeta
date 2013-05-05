@@ -6,7 +6,7 @@ Evaluates lisp expressions. 'repl' reads from stdin. The other stuff probably
 shouldn't be called unless you know what you're doing.
 """
 
-__all__ = ['zeta', 'repl', 'eval', 'parse', 'parse_file']
+__all__ = ['zeta', 'printError']
 
 from src.parsers import parse, parse_file
 from src.primitives import *
@@ -169,17 +169,21 @@ def eval(expr, env):
             else:
                 raise Exception("Cannot apply '{}'".format(function))
 
+def printError(e):
+    """Print exception with name and reason"""
+    print('{}: {}\n'.format(e.__class__.__name__, str_list(e)))
+
 def repl(env):
     print("Type (help) for global definitions")
     while 1:
         value = NIL
         try:
-            value = eval(parse(), env)
+            value = eval(parse('[]> '), env)
             print("Value: {}\n".format(str_list(value)))
         except (KeyboardInterrupt, EOFError):
             break
         except Exception as e:
-            print("{}: {}\n".format(e.__class__.__name__, str_list(e)))
+            printError(e)
 
 def zeta(stream):
     eval_load(single('src/library.lisp'), global_env)
@@ -192,7 +196,6 @@ def zeta(stream):
             except (KeyboardInterrupt, EOFError):
                 break
             except Exception as e:
-                print("{}: {}\n".format(e.__class__.__name__, str_list(e)))
-                print("Exiting")
+                printError(e)
                 break
 

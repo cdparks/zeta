@@ -4,10 +4,10 @@ It started as a project for a class, and now I just hack on it occasionally for 
 
 #Running
 To start the interpreter, run 'python zeta.py'. By default, the interpreter
-runs as a read-evaluate-print loop. However, one can use file redirection
-to execute a script non-interactively:
+runs as a read-evaluate-print loop. However, one can pass a filename as the first
+argument to execute a script non-interactively:
 
-`python zeta < script.lisp`
+`python zeta script.lisp`
 
 The interpreter adjusts to avoid printing unnecessary prompts.
 

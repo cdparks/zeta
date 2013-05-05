@@ -1,7 +1,7 @@
 # encoding: utf-8
 from __future__ import print_function, unicode_literals
 
-__all__ = ["parse"]
+__all__ = ["parse", "read"]
 
 import readline
 from src.primitives import Symbol, NIL
@@ -17,6 +17,7 @@ punctuation = MatchFirst([
 lexer = ZeroOrMore(punctuation | atom).ignore(comment)
 
 try:
+    # Python 2
     input = raw_input
 except NameError:
     pass
@@ -27,9 +28,10 @@ def build_parser():
     pop = stack.pop
     push = stack.append
 
-    def lex():
+    def lex(prompt=None):
         '''Token generator. Yields empty list with no input'''
-        for parsed, start, end in lexer.scanString(input('[]> ')):
+        line = input() if prompt is None else input(prompt)
+        for parsed, start, end in lexer.scanString(line):
             for token in parsed:
                 yield token
         while stack:
@@ -67,11 +69,11 @@ def build_parser():
         balance(pop(), token)
         return tuple(out)
 
-    def parser():
+    def parser(prompt=None):
         '''Reset bracket stack and start parsing'''
         while stack:
             pop()
-        stream = lex()
+        stream = lex(prompt)
         expr = s_expr(stream)
         token = next(stream)
         if token != NIL:
