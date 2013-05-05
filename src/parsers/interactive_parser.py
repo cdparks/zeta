@@ -1,3 +1,6 @@
+# encoding: utf-8
+from __future__ import print_function, unicode_literals
+
 __all__ = ["parse"]
 
 import readline
@@ -12,6 +15,11 @@ punctuation = MatchFirst([
 
 # Build lexer
 lexer = ZeroOrMore(punctuation | atom).ignore(comment)
+
+try:
+    input = raw_input
+except NameError:
+    pass
 
 def build_parser():
     '''Build interactive parse() function'''

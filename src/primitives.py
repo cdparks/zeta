@@ -1,3 +1,13 @@
+# encoding: utf-8
+from __future__ import print_function, unicode_literals
+
+try:
+    # Python 2
+    str = unicode
+except NameError:
+    # Python 3
+    pass
+
 from functools import wraps
 
 __all__ = [

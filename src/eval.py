@@ -1,4 +1,5 @@
-from __future__ import print_function
+# encoding: utf-8
+from __future__ import print_function, unicode_literals
 
 """
 Evaluates lisp expressions. 'repl' reads from stdin. The other stuff probably

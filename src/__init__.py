@@ -1,7 +1,5 @@
-# Author: Christopher D. Parks
-# Email: chris.parks@uky.edu
-# Date: 4 December 2011
-# Class: CS655
+# encoding: utf-8
+from __future__ import print_function, unicode_literals
 
 from src.eval import *
 
