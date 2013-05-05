@@ -23,27 +23,28 @@ To exit interactive mode, type `ctrl-D` or `ctrl-C`.
 * Parentheses-aware REPL
 
 #Canonical Example
+```scm
+;; Applications in tail position will execute in
+;; constant stack space
+(define (factorial n)
+    (define (loop acc x)
+        (if (< x 2)
+            acc
+            (loop (* x acc) (- x 1))))
+    (loop 1 n))
 
-    ;; Applications in tail position will execute in
-    ;; constant stack space
-    (define (factorial n)
-        (define (loop acc x)
-            (if (< x 2)
-                acc
-                (loop (* x acc) (- x 1))))
-        (loop 1 n))
+;; Nicer to use a fold
+(define (factorial^ n)
+    (foldl * 1 (range 1 n)))
 
-    ;; Nicer to use a fold
-    (define (factorial^ n)
-        (foldl * 1 (range 1 n)))
+;; Even better if the library expects such a thing
+(define (factorial^^ n)
+    (product (range 1 n)))
 
-    ;; Even better if the library expects such a thing
-    (define (factorial^^ n)
-        (product (range 1 n)))
-
-    (print (factorial   10))
-    (print (factorial^  10))
-    (print (factorial^^ 10))
+(print (factorial   10))
+(print (factorial^  10))
+(print (factorial^^ 10))
+```
 
 #Credits
 * Originally a port of the Common Lisp meta-circular evaluator in [Dr. Raphael Finkel's](http://www.cs.uky.edu/~raphael/) book ["Advanced Programming Language Design"](http://www.amazon.com/dp/0805311912).
