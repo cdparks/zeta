@@ -14,38 +14,36 @@ from src.operators import *
 
 import functools
 
-class Forms(object):
+class Context(object):
     """Map symbol name to form implementation"""
     def __init__(self):
-        self.actions = {}
+        self.forms = {}
 
     def register(self, function):
         """Register form by name"""
         name = function.__name__.split('_')[-1]
-        self.actions[Symbol(name)] = function
+        self.forms[Symbol(name)] = function
         return function
 
     def get(self, name):
         """Get implementation by name"""
-        return self.actions.get(name)
+        return self.forms.get(name)
 
 # Module level jump table for form implementations
-forms = Forms()
+context = Context()
 
-@forms.register
+@context.register
 def eval_let(body, env):
-    """ (let ([x 2] [y 8]) (+ x y)) """
+    """Bind each name and evaluate the body"""
     local_env = Environment(scope=env)
     for name, expr in car(body):
         value = eval(expr, local_env)
         local_env[name] = value
     return eval(single(Symbol('BEGIN')) + cdr(body), local_env)
 
-@forms.register
+@context.register
 def eval_lambda(function, env):
-    """
-    (lambda (x)(* x x)) => (LAMBDA (X)(BEGIN (* x x)) (ENV))
-    """
+    """Build a closure"""
     formals = car(function)
     if isatom(car(cdr(function))):
         body = car(cdr(function))
@@ -57,33 +55,39 @@ def eval_lambda(function, env):
         body = single(Symbol('BEGIN')) + cdr(function)
     return Closure(body, formals, env)
 
-@forms.register
+@context.register
 def eval_quote(ls, env):
-    """ (quote (1 2 3 4)) or '(1 2 3 4) """
+    """Return the quoted object unevaluated"""
     return car(ls)
 
-@forms.register
+@context.register
 def eval_begin(exprs, env):
+    """Evaluate a sequence of expressions and return the last one in
+       a Thunk to keep simplifying"""
     for expr in exprs[:-1]:
         eval(expr, env)
     return Thunk(exprs[-1])
 
-@forms.register
+@context.register
 def eval_if(exprs, env):
+    """Evaluate the first expression and return the second or third
+       in a Thunk to keep simplifying"""
     if len(exprs) != 3:
         raise Exception('Malformed if: "{}"'.format(exprs))
     test, consequent, alternative = exprs
     return Thunk(consequent if eval(test, env) else alternative)
 
-@forms.register
+@context.register
 def eval_cond(exprs, env):
+    """Evaluate conditions until one evaluates to True. Then
+       return the body in a Thunk to keep simplifying"""
     for cond, expr in exprs:
         test = eval(cond, env)
         if test:
             return Thunk(expr)
     return NIL
 
-@forms.register
+@context.register
 def eval_or(exprs, env):
     """Short circuit or"""
     for expr in exprs:
@@ -91,7 +95,7 @@ def eval_or(exprs, env):
             return True
     return False
 
-@forms.register
+@context.register
 def eval_and(exprs, env):
     """Short circuit and"""
     for expr in exprs:
@@ -99,20 +103,9 @@ def eval_and(exprs, env):
             return False
     return True
 
-@forms.register
+@context.register
 def eval_define(expr, env):
-    """
-    Names:
-    (define pi 3.1415926535897931)
-
-    Functions:
-    (define (gcd x y)
-        (if (= y 0
-            x
-            (gcd y (mod x y)))))
-    =>
-    (LAMBDA-CLOSURE (X Y) (BEGIN (IF (= Y 0) X (GCD Y (MOD X Y)))) (ENV))
-    """
+    """Define a name or function in the current environment"""
     if isatom(car(expr)):
         name = car(expr)
         env[name] = eval(car(cdr(expr)), env)
@@ -126,14 +119,16 @@ def eval_define(expr, env):
         env[name] = closure
         return NIL
 
-@forms.register
+@context.register
 def eval_delete(expr, env):
+    """Remove a named object from the current environment"""
     if isatom(car(expr)):
         env.pop(car(expr))
     return NIL
 
-@forms.register
+@context.register
 def eval_load(s, env):
+    """Evaluate sequence of expressions in current environment"""
     with open(car(s)) as stream:
         value = NIL
         for expression in parse_file(stream):
@@ -149,9 +144,9 @@ def eval(expr, env):
             return expr
 
         first, rest = splits(expr)
-        action = forms.get(first)
-        if action is not None:
-            expr = action(rest, env)
+        form = context.get(first)
+        if form is not None:
+            expr = form(rest, env)
             if isinstance(expr, Thunk):
                 expr = expr.value
             else:
