@@ -5,7 +5,7 @@ __all__ = ["parse", "read"]
 
 import readline
 from src.primitives import Symbol, NIL
-from src.parsers.tokens import atom, comment
+from src.parsers.tokens import *
 from src.parsers.utils import *
 
 # Drive the parser with brackets and quote

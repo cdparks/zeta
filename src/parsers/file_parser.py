@@ -4,7 +4,7 @@ from __future__ import print_function, unicode_literals
 __all__ = ['parse_file']
 
 from src.parsers.utils import *
-from src.parsers.tokens import atom, comment
+from src.parsers.tokens import *
 from src.primitives import Symbol
 
 # Accept but remove from output

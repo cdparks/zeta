@@ -3,7 +3,13 @@ from __future__ import print_function, unicode_literals
 
 '''Define token recognizers common to interactive and file parser'''
 
-from pyparsing import *
+import sys
+try:
+    from pyparsing import *
+except ImportError:
+    print('Please install the pyparsing library')
+    sys.exit(1)
+
 from src.parsers.utils import *
 from src.primitives import Symbol, NIL
 
