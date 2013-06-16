@@ -174,9 +174,11 @@ def repl(env):
         value = NIL
         try:
             value = eval(parse('[]> '), env)
-            print("Value: {}\n".format(str_list(value)))
-        except (KeyboardInterrupt, EOFError):
+            print('Value: {}\n'.format(str_list(value)))
+        except EOFError:
             break
+        except KeyboardInterrupt:
+            print('\nValue: nil\n')
         except Exception as e:
             printError(e)
 
