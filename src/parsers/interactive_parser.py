@@ -15,10 +15,17 @@ punctuation = MatchFirst([
 
 # Build lexer
 lexer = ZeroOrMore(punctuation | atom).ignore(comment)
+def tokens(s):
+    try:
+        for token in lexer.parseString(s, parseAll=True):
+            yield token
+    except Exception as e:
+        raise ParseError(str(e))
 
 try:
     # Python 2
     input = raw_input
+    str = unicode
 except NameError:
     pass
 
@@ -31,13 +38,11 @@ def build_parser():
     def lex(prompt=None):
         '''Token generator. Yields empty list with no input'''
         line = input() if prompt is None else input(prompt)
-        for parsed, start, end in lexer.scanString(line):
-            for token in parsed:
-                yield token
+        for token in tokens(line):
+            yield token
         while stack:
-            for parsed, start, end in lexer.scanString(input()):
-                for token in parsed:
-                    yield token
+            for token in tokens(input()):
+                yield token
         while 1:
             yield NIL
 
